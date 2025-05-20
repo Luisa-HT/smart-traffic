@@ -15,6 +15,8 @@ import pygame
 import sys
 import os
 
+import requests
+
 # options={
 #    'model':'./cfg/yolo.cfg',     #specifying the path of model
 #    'load':'./bin/yolov2.weights',   #weights
@@ -354,8 +356,8 @@ class Vehicle(pygame.sprite.Sprite):
                     if (self.turned == 0):
                         self.rotateAngle += rotationAngle
                         self.currentImage = pygame.transform.rotate(self.originalImage, self.rotateAngle)
-                        self.x -= 1.8
-                        self.y += 2.5
+                        self.x -= 2
+                        self.y += 1.8
                         if self.rotateAngle == 90:
                             self.turned = 1
                     else:
@@ -424,8 +426,8 @@ class Vehicle(pygame.sprite.Sprite):
                     if (self.turned == 0):
                         self.rotateAngle += rotationAngle
                         self.currentImage = pygame.transform.rotate(self.originalImage, self.rotateAngle)
-                        self.x -= 1
-                        self.y -= 1
+                        self.x -= 2.5
+                        self.y += 1
                         if (self.rotateAngle == 90):
                             self.turned = 1
                     else:
@@ -503,6 +505,11 @@ def setTime():
     # greenTime = random.randint(15,50)
     signals[(currentGreen + 1) % (noOfSignals)].green = greenTime
 
+    #update flask
+    try:
+        requests.get(f"http://127.0.0.1:5000/update-data/{greenTime}/{noOfCars + noOfBuses + noOfTrucks + noOfBikes}")
+    except:
+        print("Failed to update web data")
 
 def repeat():
     global currentGreen, currentYellow, nextGreen
@@ -560,10 +567,15 @@ def updateValues():
             if (currentYellow == 0):
                 signals[i].green -= 1
                 signals[i].totalGreenTime += 1
+                #try:
+                #    requests.get(f"http://127.0.1.1:5000/countdown-data/{signals[i].green}")
+                #except:
+                #    print("Failed to update count data")
             else:
                 signals[i].yellow -= 1
         else:
             signals[i].red -= 1
+
 
 
 # Generating vehicles in the simulation
@@ -602,10 +614,9 @@ def generateVehicles():
 
 #directionNumbers = {0: 'right', 1: 'down', 2: 'left', 3: 'up'}
         #right
-        Vehicle(lane_number, vehicleTypes[vehicle_type], direction_number, directionNumbers[direction_number],
-                will_turn)
+        Vehicle(lane_number, vehicleTypes[vehicle_type], direction_number, directionNumbers[direction_number],will_turn)
         #try:
-        #Vehicle(0, vehicleTypes[vehicle_type], 0, 'right',2)
+        #Vehicle(0, vehicleTypes[vehicle_type], 3, 'up',2)
         #except Exception as e:
         #    print(f"Error creating vehicle: {e}")
 
@@ -670,7 +681,7 @@ class Main:
 
         screen.blit(background, (0, 0))  # display background in simulation
         for i in range(0,
-                       noOfSignals):  # display signal and set timer according to current status: green, yello, or red
+                       noOfSignals):  # display signal and set timer according to current status: green, yellow, or red
             if (i == currentGreen):
                 if (currentYellow == 1):
                     if (signals[i].yellow == 0):
