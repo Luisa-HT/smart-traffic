@@ -10,18 +10,33 @@ import random
 import math
 import time
 import threading
+
+import cv2
+import numpy as np
 # from vehicle_detection import detection
 import pygame
 import sys
 import os
+import json
 
+from queue import Queue
 import requests
+import websockets.typing
+from websockets.sync.server import serve
+
 
 # options={
 #    'model':'./cfg/yolo.cfg',     #specifying the path of model
 #    'load':'./bin/yolov2.weights',   #weights
 #    'threshold':0.3     #minimum confidence factor to create a box, greater than 0.3 good
 # }
+
+#Queue
+queue = Queue(maxsize=0)
+stored_frame = None
+frame_lock = threading.Lock()
+jsonStr = ""
+
 
 # tfnet=TFNet(options)    #READ ABOUT TFNET
 DIRECTION_MAP = {'right': 0, 'up': 1, 'left': 2, 'down': 3}
@@ -36,7 +51,7 @@ defaultMaximum = 60
 
 signals = []
 noOfSignals = 4
-simTime = 300  # change this to change time of simulation
+simTime = 30  # change this to change time of simulation
 timeElapsed = 0
 
 currentGreen = 0  # Indicates which signal is green
@@ -445,7 +460,6 @@ class Vehicle(pygame.sprite.Sprite):
                                 vehicles[self.direction][self.lane][self.index - 1].turned == 1))):
                     self.y -= self.speed
 
-
 # Initialization of signals with default values
 def initialize():
     ts1 = TrafficSignal(0, defaultYellow, defaultGreen, defaultMinimum, defaultMaximum)
@@ -626,21 +640,69 @@ def generateVehicles():
 def simulationTime():
     global timeElapsed, simTime
     while (True):
-        timeElapsed += 1
-        time.sleep(1)
-        if (timeElapsed == simTime):
-            totalVehicles = 0
-            print('Lane-wise Vehicle Counts')
-            for i in range(noOfSignals):
-                print('Lane', i + 1, ':', vehicles[directionNumbers[i]]['crossed'])
-                totalVehicles += vehicles[directionNumbers[i]]['crossed']
-            print('Total vehicles passed: ', totalVehicles)
-            print('Total time passed: ', timeElapsed)
-            print('No. of vehicles passed per unit time: ', (float(totalVehicles) / float(timeElapsed)))
-            os._exit(1)
+        timeElapsed += 0.1
+        time.sleep(0.1)
+        totalVehicles = 0
+        for i in range(0, noOfSignals):
+            if (currentGreen == i):
+                for j in range(0, noOfSignals):
+                    totalVehicles += vehicles[directionNumbers[j]]['crossed']
+                flowRate = (float(totalVehicles) / float(timeElapsed))
+
+                q = {
+                    "flowRate": round(flowRate,2),
+                    "timeElapsed": timeElapsed,
+                    "totalVehicles": totalVehicles,
+                    "greenSignal": f'{signals[i].green:02d}'
+                }
+
+                jsonStr = json.dumps(q)
+                queue.put(jsonStr)
+def capture_frame():
+    global stored_frame
+    frame = pygame.surfarray.array3d(pygame.display.get_surface())
+    frame = np.rot90(np.flip(frame, axis=0))  # Flip + rotate
+    frame = np.rot90(np.flip(frame))
+    frame = np.rot90(np.flip(frame))
+    frame = cv2.resize(frame, dsize=(700, 400), interpolation=cv2.INTER_CUBIC)
+
+    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+    success, buffer = cv2.imencode('.jpeg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
+    if success:
+        with frame_lock:
+            stored_frame = buffer.tobytes()
+
+def send_frame(websocket):
+    global stored_frame
+    while True:
+        time.sleep(1/30)
+        with frame_lock:
+            websocket.send(stored_frame)
+
+def streamWS():
+    with serve(send_frame, "0.0.0.0", 5002, subprotocols=["asdf"]) as server:
+        server.serve_forever()
+
+def echo(websocket):
+    while True:
+        websocket.send(queue.get())
+
+def ws():
+    with serve(echo, "0.0.0.0", 8765, subprotocols=["json"]) as server:
+        server.serve_forever()
 
 
 class Main:
+
+    thread6 = threading.Thread(name="streamWS", target=streamWS, args=())
+    thread6.daemon = True
+    thread6.start()
+
+    thread5 = threading.Thread(name="ws", target=ws, args=())
+    thread5.daemon = True
+    thread5.start()
+
     thread4 = threading.Thread(name="simulationTime", target=simulationTime, args=())
     thread4.daemon = True
     thread4.start()
@@ -714,7 +776,7 @@ class Main:
             vehicleCountTexts[i] = font.render(str(displayText), True, black, white)
             screen.blit(vehicleCountTexts[i], vehicleCountCoods[i])
 
-        timeElapsedText = font.render(("Time Elapsed: " + str(timeElapsed)), True, black, white)
+        timeElapsedText = font.render(("Time Elapsed: " + str(round(timeElapsed, 2))), True, black, white)
         screen.blit(timeElapsedText, (1100, 50))
 
         # display the vehicles
@@ -723,7 +785,7 @@ class Main:
             # vehicle.render(screen)
             vehicle.move()
         pygame.display.update()
-
+        capture_frame()
 
 Main()
 

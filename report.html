@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Report - Smart Traffic Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    body {
+      margin: 0;
+      background-color: #1c1c2e;
+      font-family: 'Segoe UI', sans-serif;
+      color: white;
+    }
+    .menu a, 
+    .menu a:visited, 
+    .menu a:hover, 
+    .menu a:active {
+      text-decoration: none;
+      color: inherit;
+      transition: all 0.3s ease;
+    }
+    .title-bar {
+      background-color: #101018;
+      padding: 20px;
+      font-size: 1.8em;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    .menu {
+      font-size: 0.9em;
+    }
+    .menu a {
+      color: #ccc;
+      text-decoration: none;
+      padding: 12px 24px;
+      background: #2e2e3e;
+      border-radius: 20px;
+      margin-left: 15px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .menu a:hover {
+      transform: translateY(-2px);
+      background: #3a3a4d;
+    }
+    .menu a.active {
+      background-color: #4a4a5e;
+      font-weight: bold;
+      color: white;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .container {
+      padding: 40px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .dropdown {
+      margin-bottom: 30px;
+      display: flex;
+      gap: 15px;
+    }
+    select {
+      padding: 12px 24px;
+      border-radius: 12px;
+      border: 1px solid #3a3a4d;
+      font-size: 1em;
+      background-color: #2e2e3e;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    select:hover {
+      background-color: #3a3a4d;
+    }
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+    }
+    .chart-box {
+      background: linear-gradient(145deg, #2e2e3e, #3a3a4d);
+      padding: 25px;
+      border-radius: 20px;
+      color: white;
+      text-align: center;
+      transition: transform 0.3s ease;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+    .chart-box:hover {
+      transform: translateY(-5px);
+    }
+    .chart-title {
+      font-size: 1.2em;
+      margin: 15px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .chart-icon {
+      font-size: 1.5em;
+      color: #64ffda;
+    }
+    .chart-content {
+      background: #1c1c2e;
+      padding: 20px;
+      border-radius: 15px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="title-bar">
+    <div><i class="fas fa-traffic-light"></i> SMART TRAFFIC LIGHT DASHBOARD</div>
+    <div class="menu">
+      <a href="/home"><i class="fas fa-home"></i> Dashboard</a>
+      <a href="/report" class="active"><i class="fas fa-chart-line"></i> Report</a>
+    </div>
+  </div>
+  <div class="container">
+    <div class="dropdown">
+      <select>
+        <option>Weekly Flow Rate</option>
+        <option>Daily Flow Rate</option>
+        <option>Monthly Flow Rate</option>
+        <option>Yearly Flow Rate</option>
+      </select>
+    </div>
+    <div class="charts">
+      <div class="chart-box">
+        <div class="chart-title">
+          <i class="fas fa-arrow-up chart-icon"></i>
+          <span>Utara (Scientia)</span>
+        </div>
+        <div class="chart-content">
+          <canvas id="chartNorth"></canvas>
+        </div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">
+          <i class="fas fa-arrow-down chart-icon"></i>
+          <span>Selatan</span>
+        </div>
+        <div class="chart-content">
+          <canvas id="chartSouth"></canvas>
+        </div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">
+          <i class="fas fa-arrow-left chart-icon"></i>
+          <span>Barat (Dalton)</span>
+        </div>
+        <div class="chart-content">
+          <canvas id="chartWest"></canvas>
+        </div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">
+          <i class="fas fa-arrow-right chart-icon"></i>
+          <span>Timur (Pradita)</span>
+        </div>
+        <div class="chart-content">
+          <canvas id="chartEast"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    webSocket = new WebSocket("ws://localhost:8765/echo", "json");
+
+    // Initialize empty charts
+    const chartConfig = {
+      type: 'line',
+      data: {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [{
+          label: 'Traffic Flow',
+          data: [65, 59, 80, 81, 56, 55, 40],
+          fill: true,
+          borderColor: '#64ffda',
+          tension: 0.4,
+          backgroundColor: 'rgba(100, 255, 218, 0.1)'
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: 'rgba(255, 255, 255, 0.1)'
+            },
+            ticks: {
+              color: '#fff'
+            }
+          },
+          x: {
+            grid: {
+              color: 'rgba(255, 255, 255, 0.1)'
+            },
+            ticks: {
+              color: '#fff'
+            }
+          }
+        }
+      }
+    };
+
+    // Create charts
+    const charts = ['North', 'South', 'West', 'East'].map(direction => {
+      const ctx = document.getElementById(`chart${direction}`);
+      return new Chart(ctx, JSON.parse(JSON.stringify(chartConfig)));
+    });
+  </script>
+</body>
+</html>

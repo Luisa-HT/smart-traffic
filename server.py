@@ -1,34 +1,27 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_file
 from flask_cors import CORS
+
 
 app = Flask(__name__)
 CORS(app)
 
-cycle_data = {
-    'greenTime': 0,
-    "vehiclesDetected": 0
-}
-countdown = {
-    "greenCount": 0
-}
-@app.route("/traffic-data")
-def traffic_data():
-    return jsonify(cycle_data)
+@app.route("/")
+def login():
+    return send_file("login.html")
+@app.route("/home")
+def home():
+    return send_file("index.html")
+@app.route("/report")
+def report():
+    return send_file("report.html")
+# @app.route("/script.js")
+# def script():
+#    return send_file("script.js")
+@app.route("/style.css")
+def style():
+   return send_file("style.css")
 
-@app.route("/countdown")
-def countdown_data():
-    return jsonify(countdown)
-
-@app.route("/update-data/<int:green>/<int:vehicles>")
-def update_data(green, vehicles):
-    cycle_data["greenTime"] = green
-    cycle_data["vehiclesDetected"] = vehicles
-    return "Updated", 200
-
-@app.route("/update-countdown/<int:count>")
-def update_countdown(count):
-    countdown["greenCount"] = count
-    return "Updated", 100
 
 if __name__ == "__main__":
-    app.run(port=5000, debug=True)
+    app.run(port=5001, debug=True)
+

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Smart Traffic Light Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="title-bar">
+    <div><i class="fas fa-traffic-light"></i> SMART TRAFFIC LIGHT DASHBOARD</div>
+    <div class="menu">
+        <span class="active">Dashboard</span>
+        <a href="/report"><span>Report</span></a>
+    </div>
+</div>
+
+<div class="container">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="sidebar-section">
+            <div class="label">
+                <i class="fas fa-clock"></i>
+                <span>Current Time</span>
+            </div>
+            <div id="current-time" class="value-red">--:--</div>
+            <div class="label">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Flow Rate</span>
+            </div>
+            <div id="flowRate" class="value-orange">__</div>
+            <div class="label">
+                <i class="fas fa-hourglass-half"></i>
+                <span>Remaining time</span>
+            </div>
+            <div id="greenSignal" class="value-green">--:--</div>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="label">
+                <i class="fas fa-video"></i>
+                <span>Camera Views</span>
+            </div>
+            <div class="camera-icons">
+                <div>
+                    <!--          <div class="camera-icon active" onclick="setPreview('Utara (Scientia)', 'https://via.placeholder.com/500x300.png?text=Utara+Scientia')">-->
+                    <!--            <i class="fas fa-video"></i>-->
+                    <!--            <span>Utara (Scientia)</span>-->
+                </div>
+                <div>
+                    <!--          <div class="camera-icon" onclick="setPreview('Selatan', 'https://via.placeholder.com/500x300.png?text=Selatan')">-->
+                    <!--            <i class="fas fa-video"></i>-->
+                    <!--            <span>Selatan</span>-->
+                </div>
+                <div>
+                    <!--          <div class="camera-icon" onclick="setPreview('Barat (Dalton)', 'https://via.placeholder.com/500x300.png?text=Barat+Dalton')">-->
+                    <!--            <i class="fas fa-video"></i>-->
+                    <!--            <span>Barat (Dalton)</span>-->
+                </div>
+                <div>
+                    <!--          <div class="camera-icon" onclick="setPreview('Timur (Pradita)', 'https://via.placeholder.com/500x300.png?text=Timur+Pradita')">-->
+                    <!--            <i class="fas fa-video"></i>-->
+                    <!--            <span>Timur (Pradita)</span>-->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+        <!-- MAP SECTION -->
+        <div class="map-section">
+            <div class="section-title">
+                <i class="fas fa-map-marked-alt"></i>
+                <span>Live Location</span>
+            </div>
+            <iframe
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.0342739042794!2d106.61345079479999!3d-6.259215740078681!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69fc64ba560885%3A0xd3f93f0db5226350!2sJl.%20Scientia%20Boulevard%2C%20Curug%20Sangereng%2C%20Kec.%20Klp.%20Dua%2C%20Kabupaten%20Tangerang%2C%20Banten%2015810!5e0!3m2!1sen!2sid!4v1747556054462!5m2!1sen!2sid"
+                    width="100%" height="100%" style="border:0; border-radius: 10px;"
+                    allowfullscreen="" loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade">
+            </iframe>
+
+            <!--          <div class="legend">-->
+            <!--          <div><div class="red-box"></div> Red (Padat)</div>-->
+            <!--          <div><div class="yellow-box"></div> Yellow (Sedang)</div>-->
+            <!--          <div><div class="green-box"></div> Green (Lancar)</div>-->
+            <!--        </div>-->
+        </div>
+
+        <!-- CAMERA SECTION -->
+        <div class="camera-section">
+            <div class="preview-title">
+                <i class="fas fa-video"></i>
+                <span id="preview-label"></span>
+            </div>
+            <div class="camera-preview">
+                <!--          <img id="preview-image" src="https://via.placeholder.com/500x300.png?text=Utara+Scientia" alt="Camera Preview" style="width: 100%; height: 100%; object-fit: cover;" />-->
+
+                <canvas id="video" width="700" height="400"></canvas>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+    const canvas = document.getElementById('video');
+    const ctx = canvas.getContext('2d');
+
+
+    videoSocket = new WebSocket("ws://localhost:5002/send_video", "asdf");
+
+    videoSocket.onmessage = (event) => {
+        const blob = new Blob([event.data], {type: "video/mp4"});
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+
+        img.onload = () => {
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(url);
+        };
+        img.src = url;
+    }
+    webSocket = new WebSocket("ws://localhost:8765/echo", "json");
+
+    webSocket.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        document.getElementById("flowRate").innerHTML = msg.flowRate + " /s";
+        document.getElementById("greenSignal").innerHTML = "00:" + msg.greenSignal;
+    };
+
+    function updateTime() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        document.getElementById('current-time').textContent = timeString;
+    }
+
+    function setPreview(label, imgSrc) {
+        document.getElementById('preview-label').textContent = label;
+        document.getElementById('preview-image').src = imgSrc;
+
+        // Update active state of camera icons
+        document.querySelectorAll('.camera-icon').forEach(icon => {
+            icon.classList.remove('active');
+            if (icon.textContent.trim().includes(label.split(' ')[0])) {
+                icon.classList.add('active');
+            }
+        });
+    }
+
+    setInterval(updateTime, 1000);
+    updateTime();
+</script>
+</body>
+</html>
